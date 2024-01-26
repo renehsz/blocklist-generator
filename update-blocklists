@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+cd -- "$( dirname -- "${BASH_SOURCE[0]}" )"
+TIMESTAMP="$(date +"%s")" # Unix time (seconds since epoch)
+
+NEW_SYMLINK_TARGET="/var/www/renehsz.com-blocklists-${TIMESTAMP}/"
+mkdir -p "${NEW_SYMLINK_TARGET}"
+
+# Generate the blocklists
+$HOME/generate-blocklists -output-dir "${NEW_SYMLINK_TARGET}"
+
+# Save the target location of the old symlink
+NO_SYMLINK=0
+OLD_SYMLINK_TARGET="$(readlink /var/www/renehsz.com/blocklists)" || NO_SYMLINK=$?
+
+# Make a new symlink
+ln -s "${NEW_SYMLINK_TARGET}" "/var/www/renehsz.com/blocklists_new_update"
+
+# Atomically move the new symlink over the old one
+mv -fT "/var/www/renehsz.com/blocklists_new_update" "/var/www/renehsz.com/blocklists"
+
+# Clean up the old data
+if [ $NO_SYMLINK -eq 0 ]; then
+    rm -rf "${OLD_SYMLINK_TARGET}"
+fi
+
